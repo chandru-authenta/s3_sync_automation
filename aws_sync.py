@@ -15,7 +15,7 @@ def send_sqs(message):
     try:
         conn=boto3.client('sqs',region_name="us-east-1")
         
-        SQS_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/832392893728/authenta-test-aws-sync"
+        SQS_QUEUE_URL = r"https://sqs.us-east-1.amazonaws.com/832392893728/authenta-test-aws-sync"
         conn.send_message(
             QueueUrl=SQS_QUEUE_URL,
             MessageBody=message

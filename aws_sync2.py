@@ -5,9 +5,9 @@ import time
 import logging
 
 # === Config ===
-SYNC_DIR = "sample"
-S3_BUCKET = "s3://authenta-test-aws-sync"
-SQS_QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/832392893728/authenta-test-aws-sync"
+SYNC_DIR = r"sample"
+S3_BUCKET = r"s3://authenta-test-aws-sync"
+SQS_QUEUE_URL = r"https://sqs.us-east-1.amazonaws.com/832392893728/authenta-test-aws-sync"
 REGION = "us-east-1"
 
 # === Logging Setup ===
