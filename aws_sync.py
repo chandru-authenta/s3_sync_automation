@@ -9,7 +9,7 @@ import boto3
 # === Config ===
 WATCH_DIR = r"C:\Users\hise\Documents\testing\sample"  # Local folder to sync
 S3_BUCKET = r"s3://authenta-test-aws-sync"
-IDLE_TIME = 60  # Seconds after last activity before syncing
+IDLE_TIME = 120  # Seconds after last activity before syncing
 
 def send_sqs(message):
     try:
