@@ -18,27 +18,27 @@ logging.basicConfig(
 )
 
 def sync_files():
-    print("🔄 Syncing from S3 to local folder...")
+    # print("🔄 Syncing from S3 to local folder...")
     try:
         subprocess.run(
             ["aws", "s3", "sync", S3_BUCKET, SYNC_DIR, "--exact-timestamps","--delete"],
             check=True
         )
-        print("✅ Sync completed.")
+        # print("✅ Sync completed.")
         logging.info("Sync successful.")
     except subprocess.CalledProcessError as e:
-        print(f"❌ Sync failed: {e}")
+        # print(f"❌ Sync failed: {e}")
         logging.error(f"Sync failed: {e}")
 
 def sqs_polling():
-    print("📡 Starting SQS polling...")
+    # print("📡 Starting SQS polling...")
     
     # SQS client setup
     try:
         sqs_client = boto3.client('sqs', region_name=REGION)
-        print("✅ SQS connection established.")
+        # print("✅ SQS connection established.")
     except Exception as e:
-        print(f"❌ SQS connection failed: {e}")
+        # print(f"❌ SQS connection failed: {e}")
         return
 
     while True:
@@ -58,7 +58,7 @@ def sqs_polling():
         if messages:
             for message in messages:
                 body = message.get('Body', '')
-                print(f"📨 Message received: {body}")
+                # print(f"📨 Message received: {body}")
                 logging.info(f"Received SQS message: {body}")
 
                 if body.strip().upper() == "SYNC_TRIGGER":
