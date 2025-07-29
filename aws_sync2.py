@@ -3,6 +3,7 @@ import boto3
 import subprocess
 import time
 import logging
+import datetime  # <-- Missing import fixed
 
 # === Config ===
 SYNC_DIR = r"sample"
@@ -17,72 +18,76 @@ logging.basicConfig(
     format='%(asctime)s | %(levelname)s | %(message)s'
 )
 
+def within_sync_hours():
+    now = datetime.datetime.now()
+    return 9 <= now.hour < 20  # 9:00 to 19:59
+
 def sync_files():
-    # print("🔄 Syncing from S3 to local folder...")
     try:
         subprocess.run(
-            ["aws", "s3", "sync", S3_BUCKET, SYNC_DIR, "--exact-timestamps","--delete"],
+            ["aws", "s3", "sync", S3_BUCKET, SYNC_DIR, "--exact-timestamps", "--delete"],
             check=True
         )
-        # print("✅ Sync completed.")
-        logging.info("Sync successful.")
+        logging.info("✅ Sync successful.")
     except subprocess.CalledProcessError as e:
-        # print(f"❌ Sync failed: {e}")
-        logging.error(f"Sync failed: {e}")
+        logging.error(f"❌ Sync failed: {e}")
 
 def sqs_polling():
-    # print("📡 Starting SQS polling...")
+    logging.info("📡 Starting SQS polling...")
     
-    # SQS client setup
     try:
         sqs_client = boto3.client('sqs', region_name=REGION)
-        # print("✅ SQS connection established.")
+        logging.info("✅ SQS client initialized.")
     except Exception as e:
-        # print(f"❌ SQS connection failed: {e}")
+        logging.error(f"❌ SQS connection failed: {e}")
         return
 
     while True:
         try:
+            if not within_sync_hours():
+                print("⏰ Outside working hours. Sleeping for 5 minutes...")
+                time.sleep(300)
+                continue
+
             response = sqs_client.receive_message(
                 QueueUrl=SQS_QUEUE_URL,
                 MaxNumberOfMessages=1,
-                WaitTimeSeconds=20  # Long polling
+                WaitTimeSeconds=20  # Max allowed by AWS
             )
+
+            messages = response.get("Messages", [])
+
+            if messages:
+                for message in messages:
+                    body = message.get('Body', '')
+                    logging.info(f"📨 Received message: {body}")
+
+                    if body.strip().upper() == "SYNC_TRIGGER":
+                        sync_files()
+
+                    try:
+                        sqs_client.delete_message(
+                            QueueUrl=SQS_QUEUE_URL,
+                            ReceiptHandle=message['ReceiptHandle']
+                        )
+                        logging.info("🗑️ Message deleted.")
+                    except Exception as e:
+                        logging.error(f"❌ Failed to delete message: {e}")
+            else:
+                print("⏳ No messages. Sleeping 40s...")
+                time.sleep(40)
+
+        except KeyboardInterrupt:
+            print("🛑 Interrupted by user.")
+            logging.info("Stopped by user.")
+            break
         except Exception as e:
-            logging.error(f"Error receiving SQS messages: {e}")
-            time.sleep(10)
-            continue
-
-        messages = response.get("Messages", [])
-
-        if messages:
-            for message in messages:
-                body = message.get('Body', '')
-                # print(f"📨 Message received: {body}")
-                logging.info(f"Received SQS message: {body}")
-
-                if body.strip().upper() == "SYNC_TRIGGER":
-                    sync_files()
-
-                # Delete message
-                try:
-                    sqs_client.delete_message(
-                        QueueUrl=SQS_QUEUE_URL,
-                        ReceiptHandle=message['ReceiptHandle']
-                    )
-                    logging.info("SQS message deleted.")
-                except Exception as e:
-                    logging.error(f"Failed to delete SQS message: {e}")
-        else:
-            print("⏳ No messages. Waiting...")
-        
-        time.sleep(40)
+            logging.error(f"Unhandled error: {e}")
+            time.sleep(30)
 
 if __name__ == "__main__":
-    # Validate variables
-    if not SQS_QUEUE_URL or not S3_BUCKET or not SYNC_DIR:
-        print("🚫 Configuration error: Check SQS_QUEUE_URL, S3_BUCKET, SYNC_DIR.")
+    if not all([SQS_QUEUE_URL, S3_BUCKET, SYNC_DIR]):
+        print("🚫 Configuration error: Missing required settings.")
         exit(1)
 
-    # Start polling
     sqs_polling()
